@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card p-4">
+  <h5>Edit Problem</h5>
+  <form method="post" action="{{ url_for('problems_edit', pid=problem.id) }}">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Title</label>
+        <input class="form-control" name="title" value="{{ problem.title }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Topic</label>
+        <select class="form-select" name="topic_id">
+          <option value="">-- No Topic --</option>
+          {% for t in topics %}
+            <option value="{{ t.id }}" {% if problem.topic_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Difficulty</label>
+        <select class="form-select" name="difficulty">
+          <option value="">-- Difficulty --</option>
+          <option value="Easy" {% if problem.difficulty == 'Easy' %}selected{% endif %}>Easy</option>
+          <option value="Medium" {% if problem.difficulty == 'Medium' %}selected{% endif %}>Medium</option>
+          <option value="Hard" {% if problem.difficulty == 'Hard' %}selected{% endif %}>Hard</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Source</label>
+        <select class="form-select" name="source">
+          <option value="LeetCode" {% if problem.source == 'LeetCode' %}selected{% endif %}>LeetCode</option>
+          <option value="Geeks for Geeks" {% if problem.source == 'Geeks for Geeks' %}selected{% endif %}>Geeks for Geeks</option>
+          <option value="NeetCode" {% if problem.source == 'NeetCode' %}selected{% endif %}>NeetCode</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Link</label>
+        <input class="form-control" name="link" value="{{ problem.link }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Tags</label>
+        <input class="form-control" name="tags" value="{{ problem.tags }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Logged Date</label>
+        <input type="date" class="form-control" name="first_logged_date" value="{% if problem.first_logged_date %}{{ problem.first_logged_date.isoformat() }}{% elif problem.created_at %}{{ problem.created_at.date().isoformat() }}{% endif %}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Time Spent (minutes)</label>
+        <input type="number" class="form-control" name="first_logged_minutes" min="0" step="5" value="{{ problem.first_logged_minutes or 0 }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Notes</label>
+        <textarea class="form-control" rows="4" name="notes">{{ problem.notes }}</textarea>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-gradient">Save</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('problems_list') }}">Cancel</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

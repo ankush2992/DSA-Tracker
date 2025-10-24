@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h4>Topics</h4>
+  <form class="row g-2" method="post" action="{{ url_for('topics_new') }}">
+    <div class="col-auto"><input class="form-control" name="name" placeholder="New topic name" required></div>
+    <div class="col-auto"><input class="form-control" name="goal_questions" placeholder="Goal Qs" type="number" min="0"></div>
+    <div class="col-auto"><input class="form-control" name="goal_minutes" placeholder="Goal Minutes" type="number" min="0"></div>
+    <div class="col-auto"><input class="form-control" name="description" placeholder="Description"></div>
+    <div class="col-auto"><button class="btn btn-primary">Add</button></div>
+  </form>
+</div>
+
+<table class="table table-hover align-middle">
+  <thead><tr><th>Topic</th><th>Questions</th><th>Minutes</th><th>Goals</th><th></th></tr></thead>
+  <tbody>
+  {% for t, q, m in rows %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td>{{ q }}</td>
+      <td>{{ m }}</td>
+      <td>
+        {% if t.goal_questions or t.goal_minutes %}
+          <span class="badge bg-success">{{ t.goal_questions }} Q</span>
+          <span class="badge bg-info text-dark">{{ t.goal_minutes }} min</span>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('topics_delete', tid=t.id) }}" onsubmit="return confirm('Delete topic and its data?');">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
