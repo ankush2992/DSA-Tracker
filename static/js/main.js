@@ -17,8 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const applyBackground = index => {
     if (index >= 0 && index < backgroundPalette.length) {
-      document.documentElement.style.setProperty('--dynamic-surface', backgroundPalette[index]);
+      const color = backgroundPalette[index];
+      document.documentElement.style.setProperty('--dynamic-surface', color);
+      document.body.style.backgroundColor = color;
     }
+  };
+
+  const resetBackground = () => {
+    document.documentElement.style.removeProperty('--dynamic-surface');
+    document.body.style.backgroundColor = '';
   };
 
   const themeToggle = document.getElementById('theme-toggle');
@@ -29,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (theme === 'dark') {
       let index = Number.parseInt(localStorage.getItem(BACKGROUND_KEY), 10);
-      if (Number.isNaN(index) || index < 0) {
+      if (Number.isNaN(index) || index < 0 || index >= backgroundPalette.length) {
         index = -1;
       }
       if (advancePalette || index === -1) {
@@ -38,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       applyBackground(index);
     } else {
-      document.documentElement.style.removeProperty('--dynamic-surface');
+      resetBackground();
     }
 
     if (themeToggle) {
