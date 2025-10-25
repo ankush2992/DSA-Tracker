@@ -1,20 +1,41 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const THEME_KEY = 'dsa-theme';
   const themeToggle = document.getElementById('theme-toggle');
   const setTheme = theme => {
     document.documentElement.setAttribute('data-bs-theme', theme);
-    localStorage.setItem('theme', theme);
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
     if (themeToggle) {
-      themeToggle.textContent = theme === 'dark' ? 'Light Mode' : 'Dark Mode';
-      themeToggle.classList.toggle('btn-outline-light', theme !== 'dark');
-      themeToggle.classList.toggle('btn-outline-secondary', theme === 'dark');
+      const isDark = theme === 'dark';
+      themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      themeToggle.setAttribute('aria-pressed', String(isDark));
+      themeToggle.classList.toggle('btn-outline-light', !isDark);
+      themeToggle.classList.toggle('btn-outline-secondary', isDark);
     }
   };
-  let currentTheme = localStorage.getItem('theme') || document.documentElement.getAttribute('data-bs-theme') || 'light';
+
+  const getPreferredTheme = () => {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored) return stored;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  let currentTheme = getPreferredTheme();
   setTheme(currentTheme);
+
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
       currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
       setTheme(currentTheme);
+    });
+  }
+
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+      if (!localStorage.getItem(THEME_KEY)) {
+        currentTheme = event.matches ? 'dark' : 'light';
+        setTheme(currentTheme);
+      }
     });
   }
 
