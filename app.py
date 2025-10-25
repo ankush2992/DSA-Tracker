@@ -41,6 +41,7 @@ def ensure_schema():
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SECRET_KEY"] = SECRET_KEY
+app.config["ASSET_VERSION"] = int(datetime.utcnow().timestamp())
 db.init_app(app)
 
 def init_db():
