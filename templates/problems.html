@@ -1,13 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row g-3 align-items-stretch">
-  <div class="col-lg-5">
+<div class="row g-4 align-items-stretch">
+  <div class="col-xl-4">
     <div class="card h-100 shadow-sm">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Add Problem</h5>
-          <span class="badge bg-primary-subtle text-primary-emphasis">Quick log</span>
-        </div>
+        <h5 class="mb-1">Add Problem</h5>
+        <p class="text-muted small mb-3">Capture a new challenge and keep your practice list up to date.</p>
         <form method="post" action="{{ url_for('problems_new') }}">
           <div class="row g-3">
             <div class="col-12">
@@ -44,7 +42,7 @@
             </div>
             <div class="col-12">
               <label class="form-label">Tags</label>
-              <input class="form-control" name="tags" placeholder="Arrays, Two Pointers, Sliding Window">
+              <input class="form-control" name="tags" placeholder="Arrays, Two Pointers">
             </div>
             <div class="col-md-6">
               <label class="form-label">Logged Date</label>
@@ -72,218 +70,141 @@
       </div>
     </div>
   </div>
-  <div class="col-lg-7">
-    <div class="card h-100 shadow-sm" id="resolve-section">
+  <div class="col-xl-8">
+    <div class="card h-100 shadow-sm">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Resolve Tracker</h5>
-          <small class="text-muted">Plan spaced reviews and mark outcomes</small>
+          <div>
+            <h5 class="mb-1">Progress Snapshot</h5>
+            <p class="text-muted small mb-0">Track how many problems you’ve logged and what needs a revisit.</p>
+          </div>
+          <a class="btn btn-sm btn-gradient" href="{{ url_for('reviews_board') }}">Open Review Board</a>
         </div>
-        <form method="post" action="{{ url_for('problems_resolve') }}" id="resolve-form" class="mb-4">
-          <div class="row g-3">
-            <div class="col-md-6 col-xl-5">
-              <label class="form-label">Problem</label>
-              <select class="form-select" name="problem_id" id="resolve-problem" required>
-                <option value="">Select a problem</option>
-                {% for p in problems %}
-                  <option value="{{ p.id }}">{{ p.title }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-6 col-xl-4">
-              <label class="form-label">Date</label>
-              <div class="input-group">
-                <input type="date" class="form-control" name="planned_date" id="resolve-date">
-                <button type="button" class="btn btn-outline-secondary" id="resolve-date-today">Today</button>
-              </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-              <label class="form-label">Minutes</label>
-              <div class="input-group">
-                <input type="number" class="form-control" name="minutes_spent" id="resolve-minutes" min="0" step="5">
-                <button type="button" class="btn btn-outline-secondary" id="resolve-minutes-fill">Set</button>
-              </div>
-            </div>
-            <div class="col-md-6 col-xl-3">
-              <label class="form-label">Outcome</label>
-              <select class="form-select" name="outcome" id="resolve-outcome">
-                <option value="Planned">Planned</option>
-                <option value="Solved">Solved</option>
-                <option value="Not Solved">Not Solved</option>
-              </select>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Notes</label>
-              <textarea class="form-control" rows="2" name="notes" placeholder="What went well? What's next?"></textarea>
-            </div>
-            <div class="col-12 d-grid d-sm-flex justify-content-sm-end gap-2">
-              <button class="btn btn-gradient px-4">Save Resolve Entry</button>
+        <div class="row row-cols-1 row-cols-md-3 g-3">
+          <div class="col">
+            <div class="border border-dashed rounded-3 p-3 h-100">
+              <span class="text-muted small text-uppercase d-block">Total Problems</span>
+              <h3 class="mb-0">{{ totals.total }}</h3>
             </div>
           </div>
-        </form>
-
-        <h6 class="mt-4 mb-2">Resolve Progress</h6>
-        <div class="table-responsive rounded">
-          <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Problem</th>
-                <th>Solved</th>
-                <th>Avg (min)</th>
-                <th>Best (min)</th>
-                <th>Latest Solve</th>
-                <th>Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in resolve_history %}
-              <tr>
-                <td class="fw-semibold">{{ row.problem.title }}</td>
-                <td>{{ row.solved_count }} / {{ row.attempts }}</td>
-                <td>{{ row.avg_minutes if row.avg_minutes is not none else '--' }}</td>
-                <td>{{ row.best_minutes if row.best_minutes is not none else '--' }}</td>
-                <td>
-                  {% if row.latest_minutes is not none %}
-                    <div>{{ row.latest_minutes }} min</div>
-                    {% if row.latest_date %}
-                      <div class="text-muted small">{{ row.latest_date.isoformat() }}</div>
-                    {% endif %}
-                  {% else %}
-                    --
-                  {% endif %}
-                </td>
-                <td>
-                  {% if row.progress_label %}
-                    <span class="badge {{ row.progress_class }}">{{ row.progress_label }}</span>
-                    {% if row.minutes_path %}
-                      <div class="small text-muted">{{ row.minutes_path }}</div>
-                    {% endif %}
-                  {% else %}
-                    --
-                  {% endif %}
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="6" class="text-center text-muted">No solve history yet.</td></tr>
+          <div class="col">
+            <div class="border border-dashed rounded-3 p-3 h-100">
+              <span class="text-muted small text-uppercase d-block">Marked to Revisit</span>
+              <h3 class="mb-0 text-accent">{{ totals.needs_review }}</h3>
+            </div>
+          </div>
+          <div class="col">
+            <div class="border border-dashed rounded-3 p-3 h-100">
+              <span class="text-muted small text-uppercase d-block">Solved this week</span>
+              <h3 class="mb-0">{{ totals.recent_solves }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <h6 class="text-muted text-uppercase small mb-2">Needs attention</h6>
+          {% if review_queue_preview %}
+            <ul class="list-unstyled mb-0">
+              {% for item in review_queue_preview %}
+              <li class="d-flex align-items-center justify-content-between border-bottom py-2">
+                <div>
+                  <span class="fw-semibold">{{ item.title }}</span>
+                  <div class="small text-muted">
+                    Priority: {{ item.review_priority }}{% if item.next_review_date %} · Next session: {{ item.next_review_date.strftime('%d %b %Y') }}{% endif %}
+                  </div>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('reviews_board', problem_id=item.id) }}">Review</a>
+              </li>
               {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="d-flex justify-content-end mt-2">
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#resolve-details" aria-expanded="false" aria-controls="resolve-details">
-            View individual attempts
-          </button>
-        </div>
-        <div class="collapse mt-3" id="resolve-details">
-          <div class="table-responsive rounded border">
-            <table class="table table-sm table-striped align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Problem</th>
-                  <th>Date</th>
-                  <th>Minutes</th>
-                  <th>Outcome</th>
-                  <th>Notes</th>
-                  <th class="text-end">Update</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for log in resolve_logs %}
-                <tr>
-                  <td>{{ log.problem.title }}</td>
-                  <td>{{ log.planned_date.isoformat() }}</td>
-                  <td>{{ log.minutes_spent }}</td>
-                  <td>
-                    <span class="badge bg-{% if log.outcome == 'Solved' %}success{% elif log.outcome == 'Not Solved' %}danger{% else %}secondary{% endif %}">
-                      {{ log.outcome }}
-                    </span>
-                  </td>
-                  <td class="text-wrap">{{ log.notes or '--' }}</td>
-                  <td>
-                    <div class="d-flex justify-content-end flex-wrap gap-1">
-                      {% if log.outcome != 'Solved' %}
-                      <form method="post" action="{{ url_for('resolve_update_outcome', rid=log.id) }}">
-                        <input type="hidden" name="outcome" value="Solved">
-                        <button class="btn btn-sm btn-outline-success" type="submit">Solved</button>
-                      </form>
-                      {% endif %}
-                      {% if log.outcome != 'Not Solved' %}
-                      <form method="post" action="{{ url_for('resolve_update_outcome', rid=log.id) }}">
-                        <input type="hidden" name="outcome" value="Not Solved">
-                        <button class="btn btn-sm btn-outline-danger" type="submit">Not Solved</button>
-                      </form>
-                      {% endif %}
-                      {% if log.outcome != 'Planned' %}
-                      <form method="post" action="{{ url_for('resolve_update_outcome', rid=log.id) }}">
-                        <input type="hidden" name="outcome" value="Planned">
-                        <button class="btn btn-sm btn-outline-secondary" type="submit">Reset</button>
-                      </form>
-                      {% endif %}
-                    </div>
-                  </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6" class="text-center text-muted">No resolve entries yet.</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+            </ul>
+          {% else %}
+            <p class="text-muted small mb-0">Nothing in the review queue. Great job!</p>
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card p-3 mt-4 shadow-sm">
-  <h5 class="mb-3">Recent Problems</h5>
-  <div class="table-responsive">
-    <table class="table table-striped align-middle table-hover">
-      <thead class="table-light">
-        <tr>
-          <th>Title</th>
-          <th>Topic</th>
-          <th>Diff</th>
-          <th>Source</th>
-          <th>Link</th>
-          <th>Logged</th>
-          <th>Minutes</th>
-          <th>Notes</th>
-          <th>Resolve Stats</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in problems %}
-          {% set summary = resolve_summary.get(p.id, {}) %}
-          <tr>
-            <td class="fw-semibold">{{ p.title }}</td>
-            <td>{{ p.topic.name if p.topic else '--' }}</td>
-            <td>{{ p.difficulty or '--' }}</td>
-            <td>{{ p.source }}</td>
-            <td>{% if p.link %}<a href="{{ p.link }}" target="_blank">Open</a>{% else %}--{% endif %}</td>
-            <td>{{ (p.first_logged_date or p.created_at.date()).isoformat() if p.first_logged_date or p.created_at else '--' }}</td>
-            <td>{{ p.first_logged_minutes or 0 }}</td>
-            <td class="text-wrap">{{ p.notes or '--' }}</td>
-            <td>
-              <div>Logged: {{ summary.get('count', 0) }}</div>
-              <div>Planned: {{ summary.get('planned', 0) }}</div>
-              {% if summary.get('last_outcome') %}
-              <div>Last: {{ summary.get('last_outcome') }}</div>
-              {% endif %}
-            </td>
-            <td>
-              <div class="d-flex flex-column flex-sm-row gap-2">
-                <a class="btn btn-sm btn-outline-primary w-100" href="{{ url_for('problems_edit', pid=p.id) }}">Edit</a>
-                <button type="button" class="btn btn-sm btn-outline-success w-100 resolve-fill-problem" data-problem-id="{{ p.id }}">Log Resolve</button>
-              </div>
-            </td>
-          </tr>
-        {% else %}
-        <tr><td colspan="10" class="text-center text-muted">No problems logged yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="card mt-4 shadow-sm">
+  <div class="card-body">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3">
+      <h5 class="mb-2 mb-lg-0">Problem Library</h5>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('reviews_board') }}">See detailed history</a>
+    </div>
+    {% if grouped_topics %}
+      {% for group in grouped_topics %}
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">{{ group.title }}</h6>
+          <span class="badge badge-pill bg-secondary-subtle text-secondary">{{ group.count }}</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Title</th>
+                <th>Diff</th>
+                <th>Last Solve</th>
+                <th>Review</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in group.problems %}
+                {% set summary = resolve_summary.get(p.id, {}) %}
+                {% set last_date = summary.get('last_date') %}
+                <tr>
+                  <td class="fw-semibold">
+                    {% if p.link %}<a href="{{ p.link }}" target="_blank">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
+                    {% if p.tags %}
+                      <div class="small text-muted">{{ p.tags }}</div>
+                    {% endif %}
+                  </td>
+                  <td>{{ p.difficulty or '--' }}</td>
+                  <td>
+                    {% if last_date %}
+                      <div>{{ last_date.strftime('%d %b %Y') }}</div>
+                      {% if summary.get('last_minutes') %}
+                      <div class="small text-muted">{{ summary.get('last_minutes') }} min · {{ summary.get('last_outcome') or 'Logged' }}</div>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">Not logged yet</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if p.needs_review %}
+                      <span class="badge badge-pill bg-danger-subtle text-danger mb-1">Needs review</span>
+                      <div class="small text-muted">Priority: {{ p.review_priority }}</div>
+                      {% if p.next_review_date %}
+                      <div class="small text-muted">Next: {{ p.next_review_date.strftime('%d %b %Y') }}</div>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge badge-pill bg-success-subtle text-success">On track</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <div class="d-flex flex-column flex-lg-row gap-2 justify-content-end">
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('problems_edit', pid=p.id) }}">Edit</a>
+                      <form method="post" action="{{ url_for('problems_review', pid=p.id) }}">
+                        <input type="hidden" name="redirect" value="{{ url_for('problems_list') }}">
+                        <input type="hidden" name="review_state" value="{{ 'off' if p.needs_review else 'on' }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                          {% if p.needs_review %}Clear mark{% else %}Mark revisit{% endif %}
+                        </button>
+                      </form>
+                      <a class="btn btn-sm btn-gradient" href="{{ url_for('reviews_board', problem_id=p.id) }}">Review</a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted mb-0">No problems logged yet. Start by adding your first challenge!</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

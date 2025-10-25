@@ -25,6 +25,10 @@ class Problem(db.Model):
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"), nullable=True)
     first_logged_date = db.Column(db.Date, default=date.today)
     first_logged_minutes = db.Column(db.Integer, default=0)
+    needs_review = db.Column(db.Boolean, default=False)
+    review_priority = db.Column(db.String(20), default="Normal")
+    next_review_date = db.Column(db.Date, nullable=True)
+    review_notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     resolve_logs = db.relationship("ResolveLog", backref="problem", lazy=True, cascade="all, delete-orphan")
 

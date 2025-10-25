@@ -18,29 +18,32 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     html[data-bs-theme='light'] {
-      --brand-primary: #2563eb;
-      --brand-surface: #f5f7fb;
-      --brand-card: #ffffff;
-      --brand-border: #e2e8f0;
-      --brand-table-alt: rgba(37, 99, 235, 0.05);
+      --brand-primary: #CC704B;
+      --brand-primary-alt: #614124;
+      --brand-accent: #9FC088;
+      --brand-highlight: #E8C07D;
+      --brand-surface: #f8f3ea;
+      --brand-card: #fffaf3;
+      --brand-border: #ead8c0;
+      --brand-table-alt: rgba(159, 192, 136, 0.16);
+      --text-strong: #3b2f23;
     }
     html[data-bs-theme='dark'] {
-      --brand-primary: #60a5fa;
-      --brand-surface: #0f172a;
-      --brand-card: #111c36;
-      --brand-border: #1e293b;
-      --brand-table-alt: rgba(96, 165, 250, 0.12);
+      --brand-primary: #E8C07D;
+      --brand-primary-alt: #CC704B;
+      --brand-accent: #9FC088;
+      --brand-highlight: #9FC088;
+      --brand-surface: #1b1410;
+      --brand-card: #221812;
+      --brand-border: #352519;
+      --brand-table-alt: rgba(204, 112, 75, 0.18);
+      --text-strong: #f8ead8;
     }
     body {
       padding-bottom: 60px;
-      background-color: var(--brand-surface);
+      background-color: var(--dynamic-surface, var(--brand-surface));
+      color: var(--text-strong);
       transition: background-color 0.3s ease, color 0.3s ease;
-    }
-    html[data-bs-theme='dark'] body {
-      color: #e2e8f0;
-    }
-    html[data-bs-theme='light'] body {
-      color: #1f2937;
     }
     .navbar-brand {
       font-weight: 700;
@@ -49,34 +52,37 @@
       border-radius: 1rem;
       background-color: var(--brand-card);
       border-color: var(--brand-border);
-      box-shadow: 0 12px 30px -12px rgba(15, 23, 42, 0.35);
+      box-shadow: 0 18px 40px -24px rgba(97, 65, 36, 0.45);
       transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     }
     .table-light {
-      background-color: rgba(148, 163, 184, 0.18) !important;
+      background-color: rgba(232, 192, 125, 0.28) !important;
     }
     .table-hover tbody tr:hover {
-      background-color: rgba(37, 99, 235, 0.12);
+      background-color: rgba(159, 192, 136, 0.22);
+    }
+    html[data-bs-theme='dark'] .table-light {
+      background-color: rgba(204, 112, 75, 0.28) !important;
     }
     html[data-bs-theme='dark'] .table-hover tbody tr:hover {
-      background-color: rgba(96, 165, 250, 0.24);
+      background-color: rgba(232, 192, 125, 0.22);
     }
     .table-striped tbody tr:nth-of-type(odd) {
       background-color: var(--brand-table-alt);
     }
     html[data-bs-theme='dark'] .badge.bg-success-subtle {
-      background-color: rgba(74, 222, 128, 0.18) !important;
-      color: #4ade80 !important;
+      background-color: rgba(159, 192, 136, 0.28) !important;
+      color: #b6e0a5 !important;
     }
     html[data-bs-theme='dark'] .badge.bg-danger {
-      background-color: rgba(248, 113, 113, 0.2) !important;
+      background-color: rgba(204, 112, 75, 0.32) !important;
     }
     html[data-bs-theme='dark'] .badge.bg-secondary-subtle {
-      background-color: rgba(148, 163, 184, 0.22) !important;
-      color: #cbd5f5 !important;
+      background-color: rgba(97, 65, 36, 0.32) !important;
+      color: #f1dcc7 !important;
     }
     .btn-gradient {
-      background: linear-gradient(135deg, var(--brand-primary), #7c3aed);
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-highlight));
       border: none;
       color: #fff;
     }
@@ -85,16 +91,20 @@
       color: #fff;
     }
     nav.navbar {
-      background: linear-gradient(135deg, var(--brand-primary), #1d4ed8) !important;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-alt)) !important;
     }
     html[data-bs-theme='dark'] nav.navbar {
-      background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+      background: linear-gradient(135deg, #2a1c13, #432a1c) !important;
     }
     html[data-bs-theme='dark'] .nav-link {
-      color: rgba(226, 232, 240, 0.85) !important;
+      color: rgba(240, 232, 220, 0.85) !important;
     }
     html[data-bs-theme='dark'] .nav-link:hover {
       color: #fff !important;
+    }
+    .badge-pill {
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
     }
   </style>
 </head>
@@ -105,9 +115,8 @@
     <ul class="navbar-nav ms-auto">
       <li class="nav-item"><a class="nav-link" href="{{ url_for('topics_list') }}">Topics</a></li>
       <li class="nav-item"><a class="nav-link" href="{{ url_for('problems_list') }}">Problems</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('reviews_board') }}">Review Board</a></li>
       <li class="nav-item"><a class="nav-link" href="{{ url_for('sessions_list') }}">Sessions</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('import_view') }}">Import</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('export_csv') }}">Export</a></li>
       <li class="nav-item ms-3">
         <button class="btn btn-sm btn-outline-light" id="theme-toggle" type="button">Dark Mode</button>
       </li>

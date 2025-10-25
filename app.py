@@ -1,13 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime, date, timedelta
 from statistics import mean
+from collections import defaultdict
 from sqlalchemy import func, text, inspect
-import io, csv, os
-import pandas as pd
 
 from config import SQLALCHEMY_DATABASE_URI, SECRET_KEY
 from models import db, Topic, Problem, Session, ResolveLog, bootstrap_defaults
-from importers import import_excel
 
 def ensure_schema():
     inspector = inspect(db.engine)
@@ -15,16 +13,30 @@ def ensure_schema():
         return
     columns = {col["name"] for col in inspector.get_columns('problems')}
     statements = []
+    post_updates = []
     if 'first_logged_date' not in columns:
         statements.append("ALTER TABLE problems ADD COLUMN first_logged_date DATE")
     if 'first_logged_minutes' not in columns:
         statements.append("ALTER TABLE problems ADD COLUMN first_logged_minutes INTEGER DEFAULT 0")
+    if 'needs_review' not in columns:
+        statements.append("ALTER TABLE problems ADD COLUMN needs_review BOOLEAN DEFAULT 0")
+        post_updates.append("UPDATE problems SET needs_review = COALESCE(needs_review, 0)")
+    if 'review_priority' not in columns:
+        statements.append("ALTER TABLE problems ADD COLUMN review_priority VARCHAR(20) DEFAULT 'Normal'")
+        post_updates.append("UPDATE problems SET review_priority = COALESCE(review_priority, 'Normal')")
+    if 'next_review_date' not in columns:
+        statements.append("ALTER TABLE problems ADD COLUMN next_review_date DATE")
+    if 'review_notes' not in columns:
+        statements.append("ALTER TABLE problems ADD COLUMN review_notes TEXT DEFAULT ''")
+        post_updates.append("UPDATE problems SET review_notes = COALESCE(review_notes, '')")
     if statements:
         with db.engine.begin() as conn:
             for stmt in statements:
                 conn.execute(text(stmt))
             conn.execute(text("UPDATE problems SET first_logged_date = COALESCE(first_logged_date, DATE(created_at))"))
             conn.execute(text("UPDATE problems SET first_logged_minutes = COALESCE(first_logged_minutes, 0)"))
+            for stmt in post_updates:
+                conn.execute(text(stmt))
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
@@ -99,29 +111,92 @@ def topics_delete(tid):
 
 @app.route('/problems')
 def problems_list():
-    q = Problem.query.order_by(Problem.created_at.desc()).limit(200).all()
+    problems = Problem.query.order_by(Problem.created_at.desc()).limit(500).all()
     topics = Topic.query.order_by(Topic.name).all()
-    resolve_logs = ResolveLog.query.order_by(ResolveLog.planned_date.desc(), ResolveLog.created_at.desc()).limit(200).all()
     resolve_summary = {}
+    for p in problems:
+        logs_sorted = sorted(p.resolve_logs, key=lambda r: ((r.planned_date or date.min), r.created_at), reverse=True)
+        latest_log = logs_sorted[0] if logs_sorted else None
+        solved_count = sum(1 for log in logs_sorted if log.outcome == "Solved")
+        resolve_summary[p.id] = {
+            "count": len(p.resolve_logs),
+            "last_outcome": latest_log.outcome if latest_log else "",
+            "last_date": latest_log.planned_date if latest_log else None,
+            "last_minutes": latest_log.minutes_spent if latest_log else None,
+            "solved_count": solved_count,
+        }
+    grouped_map = defaultdict(list)
+    for problem in problems:
+        key = problem.topic_id if problem.topic_id else "unassigned"
+        grouped_map[key].append(problem)
+    grouped_topics = []
+    for topic in topics:
+        bucket = grouped_map.get(topic.id)
+        if bucket:
+            bucket.sort(key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
+            grouped_topics.append({
+                "title": topic.name,
+                "topic": topic,
+                "count": len(bucket),
+                "problems": bucket
+            })
+    if grouped_map.get("unassigned"):
+        bucket = grouped_map["unassigned"]
+        bucket.sort(key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
+        grouped_topics.append({
+            "title": "Misc / No Topic",
+            "topic": None,
+            "count": len(bucket),
+            "problems": bucket
+        })
+    last7 = date.today() - timedelta(days=7)
+    recent_solves = ResolveLog.query.filter(
+        ResolveLog.outcome == "Solved",
+        ResolveLog.planned_date >= last7
+    ).count()
+    totals = {
+        "total": len(problems),
+        "needs_review": sum(1 for p in problems if p.needs_review),
+        "recent_solves": recent_solves,
+    }
+    priorities = ["Low", "Normal", "High", "Critical"]
+    review_queue_preview = [p for p in problems if p.needs_review][:5]
+    return render_template(
+        'problems.html',
+        problems=problems,
+        topics=topics,
+        resolve_summary=resolve_summary,
+        priorities=priorities,
+        totals=totals,
+        review_queue_preview=review_queue_preview,
+        grouped_topics=grouped_topics,
+        today=date.today()
+    )
+
+@app.route('/reviews')
+def reviews_board():
+    problems = Problem.query.order_by(Problem.created_at.desc()).all()
+    resolve_logs = ResolveLog.query.order_by(ResolveLog.planned_date.desc(), ResolveLog.created_at.desc()).limit(400).all()
     resolve_history = []
-    for p in q:
+    resolve_summary = {}
+    for p in problems:
         logs_sorted = sorted(p.resolve_logs, key=lambda r: ((r.planned_date or date.min), r.created_at))
         logs_desc = list(reversed(logs_sorted))
+        latest_entry = logs_desc[0] if logs_desc else None
+        solved_logs = [log for log in logs_sorted if log.outcome == "Solved"]
         resolve_summary[p.id] = {
             "count": len(p.resolve_logs),
             "planned": sum(1 for log in p.resolve_logs if log.outcome == "Planned"),
-            "last_outcome": logs_desc[0].outcome if logs_desc else ""
+            "last_outcome": latest_entry.outcome if latest_entry else "",
+            "last_date": latest_entry.planned_date if latest_entry else None,
+            "last_minutes": latest_entry.minutes_spent if latest_entry else None
         }
-        if not logs_sorted:
-            continue
-        solved_logs = [log for log in logs_sorted if log.outcome == "Solved"]
         if not solved_logs:
             continue
         attempts = len(logs_sorted)
         solved_minutes = [log.minutes_spent for log in solved_logs if log.minutes_spent is not None]
         first_solved = solved_logs[0]
         latest_solved = solved_logs[-1]
-        latest_entry = logs_sorted[-1]
         best_minutes = min(solved_minutes) if solved_minutes else None
         avg_minutes = round(mean(solved_minutes), 1) if solved_minutes else None
         progress_label = None
@@ -164,15 +239,52 @@ def problems_list():
             "first_date": first_solved.planned_date,
         })
     resolve_history.sort(key=lambda item: (item["latest_date"] or date.min, item["problem"].id), reverse=True)
+    review_queue = [p for p in problems if p.needs_review]
+    priorities = ["Low", "Normal", "High", "Critical"]
+    focus_id = request.args.get('problem_id', type=int)
+    focus_problem = Problem.query.get(focus_id) if focus_id else None
     return render_template(
-        'problems.html',
-        problems=q,
-        topics=topics,
+        'reviews.html',
+        problems=problems,
+        review_queue=review_queue,
         resolve_logs=resolve_logs,
-        resolve_summary=resolve_summary,
         resolve_history=resolve_history,
-        today=date.today()
+        resolve_summary=resolve_summary,
+        priorities=priorities,
+        today=date.today(),
+        focus_problem=focus_problem
     )
+
+@app.route('/problems/<int:pid>/review', methods=['POST'])
+def problems_review(pid):
+    problem = Problem.query.get_or_404(pid)
+    review_state = request.form.get('review_state')
+    if review_state == 'on':
+        problem.needs_review = True
+    elif review_state == 'off':
+        problem.needs_review = False
+    elif 'needs_review' in request.form:
+        problem.needs_review = request.form.get('needs_review') in ('true', '1', 'on')
+
+    if 'review_priority' in request.form:
+        problem.review_priority = request.form.get('review_priority') or 'Normal'
+    if 'review_notes' in request.form:
+        problem.review_notes = request.form.get('review_notes', '').strip()
+
+    next_review_str = request.form.get('next_review_date')
+    if next_review_str is not None:
+        if next_review_str:
+            try:
+                problem.next_review_date = datetime.strptime(next_review_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash('Invalid next review date', 'warning')
+        else:
+            problem.next_review_date = None
+
+    db.session.commit()
+    flash('Review settings updated', 'success')
+    redirect_target = request.form.get('redirect') or request.referrer or url_for('problems_list')
+    return redirect(redirect_target)
 
 @app.route('/problems/new', methods=['POST'])
 def problems_new():
@@ -250,11 +362,12 @@ def problems_edit(pid):
 @app.route('/problems/resolve', methods=['POST'])
 def problems_resolve():
     problem_id = request.form.get('problem_id')
+    redirect_target = request.form.get('redirect') or url_for('reviews_board')
     if not problem_id:
-        flash('Select a problem to track a resolve attempt', 'danger'); return redirect(url_for('problems_list'))
+        flash('Select a problem to track a resolve attempt', 'danger'); return redirect(redirect_target)
     problem = Problem.query.get(problem_id)
     if not problem:
-        flash('Problem not found', 'danger'); return redirect(url_for('problems_list'))
+        flash('Problem not found', 'danger'); return redirect(redirect_target)
     date_str = request.form.get('planned_date')
     try:
         planned_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
@@ -271,14 +384,14 @@ def problems_resolve():
     notes = request.form.get('notes','').strip()
     log = ResolveLog(problem=problem, planned_date=planned_date, minutes_spent=minutes_spent, outcome=outcome, notes=notes)
     db.session.add(log); db.session.commit()
-    flash('Resolve entry saved', 'success'); return redirect(url_for('problems_list'))
+    flash('Resolve entry saved', 'success'); return redirect(url_for('reviews_board', problem_id=problem.id))
 
 @app.route('/resolves/<int:rid>/outcome', methods=['POST'])
 def resolve_update_outcome(rid):
     log = ResolveLog.query.get_or_404(rid)
     outcome = request.form.get('outcome','').strip()
     if outcome not in ('Planned', 'Solved', 'Not Solved'):
-        flash('Invalid outcome', 'danger'); return redirect(url_for('problems_list'))
+        flash('Invalid outcome', 'danger'); return redirect(request.referrer or url_for('reviews_board'))
     minutes_raw = request.form.get('minutes_spent','').strip()
     if minutes_raw:
         try:
@@ -287,7 +400,7 @@ def resolve_update_outcome(rid):
             pass
     log.outcome = outcome
     db.session.commit()
-    flash('Resolve outcome updated', 'success'); return redirect(url_for('problems_list'))
+    flash('Resolve outcome updated', 'success'); return redirect(url_for('reviews_board', problem_id=log.problem_id))
 
 @app.route('/sessions')
 def sessions_list():
@@ -361,45 +474,6 @@ def sessions_bulk():
         imported += 1
     db.session.commit()
     flash(f'Imported {imported} sessions', 'success'); return redirect(url_for('sessions_list'))
-
-@app.route('/import', methods=['GET','POST'])
-def import_view():
-    if request.method == 'POST':
-        f = request.files.get('excel')
-        if not f:
-            flash('Upload an Excel workbook', 'danger'); return redirect(url_for('import_view'))
-        path = os.path.join(app.instance_path, 'uploads')
-        os.makedirs(path, exist_ok=True)
-        save_path = os.path.join(path, f.filename)
-        f.save(save_path)
-        rows = import_excel(save_path)
-        flash(f'Imported rows from Excel: {rows}', 'success')
-        return redirect(url_for('index'))
-    return render_template('import.html')
-
-@app.route('/export/csv')
-def export_csv():
-    si = io.StringIO()
-    cw = csv.writer(si)
-    cw.writerow(["date","topic","problem","minutes","outcome","source","difficulty","link","tags","notes"])
-    q = db.session.query(Session, Problem, Topic).join(Problem, Session.problem_id==Problem.id, isouter=True).join(Topic, Session.topic_id==Topic.id, isouter=True).all()
-    for s, p, t in q:
-        cw.writerow([
-            s.date.isoformat() if s.date else "",
-            t.name if t else "",
-            p.title if p else "",
-            s.duration_minutes,
-            s.outcome,
-            p.source if p else "",
-            p.difficulty if p else "",
-            p.link if p else "",
-            p.tags if p else "",
-            s.approach_notes or (p.notes if p else "")
-        ])
-    output = io.BytesIO()
-    output.write(si.getvalue().encode())
-    output.seek(0)
-    return send_file(output, mimetype='text/csv', as_attachment=True, download_name='dsa_progress_export.csv')
 
 @app.route('/api/stats')
 def api_stats():

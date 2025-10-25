@@ -1,10 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
   const THEME_KEY = 'dsa-theme';
+  const BACKGROUND_KEY = 'dsa-theme-bg-index';
+  const backgroundPalette = [
+    '#9FC088',
+    '#91C4C3',
+    '#9B5DE0',
+    '#5D866C',
+    '#BF092F',
+    '#B0CE88',
+    '#2F5755',
+    '#5C3E94',
+    '#FF3F7F',
+    '#C2E2FA',
+    '#E9D484'
+  ];
+
+  const applyBackground = index => {
+    if (index >= 0 && index < backgroundPalette.length) {
+      document.documentElement.style.setProperty('--dynamic-surface', backgroundPalette[index]);
+    }
+  };
+
   const themeToggle = document.getElementById('theme-toggle');
-  const setTheme = theme => {
+  const setTheme = (theme, advancePalette = false) => {
     document.documentElement.setAttribute('data-bs-theme', theme);
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
+
+    if (theme === 'dark') {
+      let index = Number.parseInt(localStorage.getItem(BACKGROUND_KEY), 10);
+      if (Number.isNaN(index) || index < 0) {
+        index = -1;
+      }
+      if (advancePalette || index === -1) {
+        index = (index + 1) % backgroundPalette.length;
+        localStorage.setItem(BACKGROUND_KEY, index);
+      }
+      applyBackground(index);
+    } else {
+      document.documentElement.style.removeProperty('--dynamic-surface');
+    }
+
     if (themeToggle) {
       const isDark = theme === 'dark';
       themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
@@ -26,7 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
       currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      setTheme(currentTheme);
+      const advancePalette = currentTheme === 'dark';
+      setTheme(currentTheme, advancePalette);
     });
   }
 
@@ -39,12 +76,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const formatDateForInput = (date = new Date()) => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const localISO = new Date(date.getTime() - tzOffset).toISOString();
+    return localISO.split('T')[0];
+  };
+
   const problemSelect = document.getElementById('resolve-problem');
   const dateInput = document.getElementById('resolve-date');
   const minutesInput = document.getElementById('resolve-minutes');
   const resolveSection = document.getElementById('resolve-section');
   const addProblemDateInput = document.getElementById('add-problem-date');
   const addProblemMinutesInput = document.getElementById('add-problem-minutes');
+
+  if (dateInput && !dateInput.value) {
+    dateInput.value = formatDateForInput();
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const focusProblemId = params.get('problem_id');
+  if (focusProblemId && problemSelect) {
+    problemSelect.value = focusProblemId;
+    if (resolveSection) {
+      resolveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   document.querySelectorAll('.resolve-fill-problem').forEach(button => {
     button.addEventListener('click', () => {
@@ -56,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resolveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       if (dateInput && !dateInput.value) {
-        dateInput.value = new Date().toISOString().slice(0, 10);
+        dateInput.value = formatDateForInput();
       }
     });
   });
@@ -64,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateTodayBtn = document.getElementById('resolve-date-today');
   if (dateTodayBtn && dateInput) {
     dateTodayBtn.addEventListener('click', () => {
-      dateInput.value = new Date().toISOString().slice(0, 10);
+      dateInput.value = formatDateForInput();
       dateInput.focus();
     });
   }
@@ -87,9 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const addProblemTodayBtn = document.getElementById('add-problem-date-today');
   if (addProblemTodayBtn && addProblemDateInput) {
     addProblemTodayBtn.addEventListener('click', () => {
-      addProblemDateInput.value = new Date().toISOString().slice(0, 10);
+      addProblemDateInput.value = formatDateForInput();
       addProblemDateInput.focus();
     });
+  } else if (addProblemDateInput && !addProblemDateInput.value) {
+    addProblemDateInput.value = formatDateForInput();
   }
 
   const addProblemMinutesBtn = document.getElementById('add-problem-minutes-fill');
